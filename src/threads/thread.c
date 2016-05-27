@@ -226,6 +226,7 @@ thread_block (void)
 
   thread_current ()->status = THREAD_BLOCKED; // mark as sleep
   schedule (); 
+  // printf("End thread_block\n");
 }
 
 /* Transitions a blocked thread T to the ready-to-run state.

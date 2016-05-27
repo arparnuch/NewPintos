@@ -88,16 +88,20 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    int nice; 
-    int load_avg;
-    int recent_cpu;
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
+/////////////////////////////////////////////////////////////////////////////
     int64_t sleep_ticks;                /* amount of time to sleep in ticks */
+    int64_t wakeup_ticks;
+    int nice; 
+    int load_avg;
+    int recent_cpu;
     int been_ignored;
+
+/////////////////////////////////////////////////////////////////////////////
+
     #ifdef USERPROG
       /* Owned by userprog/process.c. */
       uint32_t *pagedir;                  /* Page directory. */

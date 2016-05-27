@@ -29,9 +29,17 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+
+
+//---------------------------------------------------------------------------
 static void wake_threads(struct thread *t, void *aux);
+static void wake_threadinSLEEP (thread_action_func *func, void *aux);
 
 static struct list waiting_list; /*sleeping pool*/
+
+
+//---------------------------------------------------------------------------
+
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -40,6 +48,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  list_init (&waiting_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -89,23 +98,48 @@ timer_elapsed (int64_t then)
 
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
+
+list_less_func *
+time_compare(const struct list_elem *a, const struct list_elem *b, void *aux){
+  // printf("Hello time_compare\n");
+  struct thread *A_thread = list_entry(a, struct thread, elem);
+  struct thread *B_thread = list_entry(b, struct thread, elem);
+  // printf("After thread Convert into pointer\n");
+
+  int64_t A = A_thread->wakeup_ticks;
+  int64_t B = B_thread->wakeup_ticks;
+
+  // printf("After assigned wakeup_ticks\n");
+  
+  //we order the list by the least wakeup_ticks comes first (who has to wake up first)
+  if(A < B){
+    return true;
+  }
+  else{
+    return false;
+  }
+
+}
 void
 timer_sleep (int64_t ticks)
 {
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON); // check for interrrupt level now -- now should be on 
+  struct thread *cur = thread_current();
+ 
+  cur->sleep_ticks = ticks; // record how many ticks thread should sleep
+  cur->wakeup_ticks = start + ticks;
 
-  
-  thread_current()->sleep_ticks = ticks; // record how many ticks thread should sleep
-  
   enum intr_level old_level = intr_disable(); // must disable --> thread_block
-
-  
+  // printf("Before insert thread into sleeping pool\n");
+  list_insert_ordered(&waiting_list, &cur->elem, time_compare, NULL);
+  // printf("After insert thread into sleeping pool\n");
   // put thread into sleeping pool
-
+  // printf("Before thread_block\n");
   thread_block(); 
-  
+
+  printf("After thread_block\n");
   intr_set_level(old_level); // turn interrupt level to the same --> ON
 }
 
@@ -184,16 +218,18 @@ timer_print_stats (void)
 void
 wake_threadinSLEEP (thread_action_func *func, void *aux) // basically run through each thread in the all thread_list
 {
+  // printf("Hello wake_threadinSLEEP\n");
   struct list_elem *e;
 
   ASSERT (intr_get_level () == INTR_OFF);
-
+  // printf("Before entering loops\n");
   for (e = list_begin (&waiting_list); e != list_end (&waiting_list);
        e = list_next (e))
     {
       struct thread *t = list_entry (e, struct thread, allelem);
       func (t, aux);
     }
+  // printf("Out of for loop\n");
 }
 
 static void
@@ -203,8 +239,12 @@ timer_interrupt (struct intr_frame *args UNUSED)
   thread_tick ();
 
   /* iterate through each thread "the list " per each tick */
-  
+  // printf("Hello timer_interrupt\n");
+
   thread_foreach(wake_threads, 0); 
+
+  // printf("Finish wake up thread\n");
+
   // must change to wake_threadinSLEEP when we able to push the thread into sleeping pool
   // we cannot now because there is no thread in sleeping pool to iterate through
 }
