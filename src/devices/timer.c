@@ -133,13 +133,15 @@ timer_sleep (int64_t ticks)
 
   enum intr_level old_level = intr_disable(); // must disable --> thread_block
   // printf("Before insert thread into sleeping pool\n");
-  list_insert_ordered(&waiting_list, &cur->elem, time_compare, NULL);
+
+  // list_insert_ordered(&waiting_list, &cur->elem, time_compare, NULL);
+
   // printf("After insert thread into sleeping pool\n");
   // put thread into sleeping pool
   // printf("Before thread_block\n");
   thread_block(); 
 
-  printf("After thread_block\n");
+  // printf("After thread_block\n");
   intr_set_level(old_level); // turn interrupt level to the same --> ON
 }
 
