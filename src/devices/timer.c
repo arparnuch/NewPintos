@@ -35,7 +35,7 @@ static void real_time_delay (int64_t num, int32_t denom);
 static void wake_threads(struct thread *t, void *aux);
 static void wake_threadinSLEEP (thread_action_func *func, void *aux);
 
-static struct list waiting_list; /*sleeping pool*/
+ /*sleeping pool*/
 
 
 //---------------------------------------------------------------------------
@@ -48,7 +48,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
-  list_init (&waiting_list);
+  
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -98,7 +98,7 @@ timer_elapsed (int64_t then)
 
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
-
+/*
 list_less_func *
 time_compare(const struct list_elem *a, const struct list_elem *b, void *aux){
   // printf("Hello time_compare\n");
@@ -119,7 +119,7 @@ time_compare(const struct list_elem *a, const struct list_elem *b, void *aux){
     return false;
   }
 
-}
+}*/
 void
 timer_sleep (int64_t ticks)
 {
@@ -139,7 +139,7 @@ timer_sleep (int64_t ticks)
   // printf("After insert thread into sleeping pool\n");
   // put thread into sleeping pool
   // printf("Before thread_block\n");
-  thread_block(); 
+  thread_timer_block(); 
 
   // printf("After thread_block\n");
   intr_set_level(old_level); // turn interrupt level to the same --> ON
@@ -216,23 +216,6 @@ timer_print_stats (void)
 }
 
 /* Timer interrupt handler. */
-
-void
-wake_threadinSLEEP (thread_action_func *func, void *aux) // basically run through each thread in the all thread_list
-{
-  // printf("Hello wake_threadinSLEEP\n");
-  struct list_elem *e;
-
-  ASSERT (intr_get_level () == INTR_OFF);
-  // printf("Before entering loops\n");
-  for (e = list_begin (&waiting_list); e != list_end (&waiting_list);
-       e = list_next (e))
-    {
-      struct thread *t = list_entry (e, struct thread, allelem);
-      func (t, aux);
-    }
-  // printf("Out of for loop\n");
-}
 
 static void
 timer_interrupt (struct intr_frame *args UNUSED)

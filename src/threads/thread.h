@@ -89,7 +89,7 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-
+    struct list_elem waitelem;          /* List element for waiting list
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 /////////////////////////////////////////////////////////////////////////////
@@ -111,6 +111,12 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
+struct thread_waiting{
+  struct thread *thread;
+  struct list_elem elem;
+};
+
+
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
@@ -124,6 +130,9 @@ void thread_print_stats (void);
 
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
+
+void thread_timer_block(void);
+void thread_timer_unblock(struct thread_waiting *tw);
 
 void thread_block (void);
 void thread_unblock (struct thread *);

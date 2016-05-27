@@ -70,7 +70,13 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+static struct list waiting_list;
 
+
+//  ==========================================
+
+
+// =============================================
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -92,6 +98,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  list_init (&waiting_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -117,6 +124,14 @@ thread_start (void)
   sema_down (&idle_started);
 }
 
+bool
+time_compare (const struct list_elem *a,const struct list_elem *b,void *aux){
+  struct thread_waiting *thread_a = list_entry(a,struct thread_waiting,elem);
+  struct thread_waiting *thread_b = list_entry(b,struct thread_waiting,elem);
+
+  return (thread_a->thread)->wakeup_ticks <= (thread_b->thread)->wakeup_ticks;
+}
+
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
 void
@@ -134,6 +149,20 @@ thread_tick (void)
   else
     kernel_ticks++;
 
+  struct list_elem *e;
+  for (e = list_begin (&waiting_list);
+      e != list_end (&waiting_list);
+      e = list_next (e))
+  {
+    struct thread_waiting *tw = list_entry (e, struct thread_waiting, elem);
+    if ((tw->thread)->wakeup_ticks <= timer_ticks ()) {
+      thread_timer_unblock (tw);
+    }
+    else{
+      break;
+    }
+  }
+  
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
@@ -222,11 +251,29 @@ thread_create (const char *name, int priority,
    is usually a better idea to use one of the synchronization
    primitives in synch.h. */
 void
+thread_timer_block(void){
+  ASSERT (intr_get_level () == INTR_OFF); // must off
+  struct thread_waiting *tw = malloc (sizeof(struct thread_waiting));
+  tw->thread = thread_current(); 
+  list_insert_ordered(&waiting_list,&tw->elem,time_compare,(void *)NULL); // push thread into sleeping pool
+  thread_block();
+  free(tw);
+}
+
+void
+thread_timer_unblock (struct thread_waiting *tw)
+{
+  ASSERT (intr_get_level () == INTR_OFF);
+
+  thread_unblock (tw->thread);
+  list_remove (&tw->elem);
+}
+
+void
 thread_block (void)
 {
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF); // must off
-
   thread_current ()->status = THREAD_BLOCKED; // mark as sleep
   schedule (); 
   // printf("End thread_block\n");
@@ -240,6 +287,7 @@ thread_block (void)
    be important: if the caller had disabled interrupts itself,
    it may expect that it can atomically unblock a thread and
    update other data. */
+
 void
 thread_unblock (struct thread *t)
 {
