@@ -195,8 +195,13 @@ lock_acquire (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
+  
+  thread_current()->wait_on_lock = lock;
 
   sema_down (&lock->semaphore);
+
+  thread_current()->wait_on_lock = NULL; // No longer waiting on a lock
+  list_push_back(&thread_current()->acquired_locks, &lock->elem); // Add lock to list of acquired locks
   lock->holder = thread_current ();
 }
 
@@ -215,8 +220,11 @@ lock_try_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   success = sema_try_down (&lock->semaphore);
-  if (success)
+  if (success){
+    thread_current()->wait_on_lock = NULL; // No longer waiting on a lock
+    list_push_back(&thread_current()->acquired_locks,&lock->elem); // Add lock to list of acquired locks
     lock->holder = thread_current ();
+  }
   return success;
 }
 
@@ -232,6 +240,7 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   lock->holder = NULL;
+  list_remove(&lock->elem); // Remove from thread's list of acquired locks
   sema_up (&lock->semaphore);
 }
 

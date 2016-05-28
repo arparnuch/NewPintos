@@ -73,7 +73,6 @@ static tid_t allocate_tid (void);
 static struct list waiting_list;
 
 bool time_compare(const struct list_elem*, const struct list_elem*, void*);
-bool priority_thread(const struct list_elem*, const struct list_elem*, void*);
 
 //  ==========================================
 
@@ -248,7 +247,7 @@ thread_create (const char *name, int priority,
   thread_unblock (t);
 
   if (t->priority >= running_thread()){
-    thread_yield;
+    thread_yield ();
   }
   return tid;
 }
@@ -306,7 +305,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_ordered (&ready_list, &t->elem,priority_thread, (void *)NULL);
+  list_insert_ordered (&ready_list, &t->elem,(list_less_func *) &priority_thread,NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -377,7 +376,7 @@ thread_yield (void) /// give the resources to the CPU willingly
 
   old_level = intr_disable ();
   if (cur != idle_thread)
-    list_insert_ordered (&ready_list, &cur->elem, priority_thread, (void *)NULL);
+      list_insert_ordered (&ready_list, &cur->elem,(list_less_func *) &priority_thread,NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -556,6 +555,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+
+  // Added initializations for priority donation
+  t->init_priority = priority;
+  t->wait_on_lock = NULL;
+  list_init(&t->acquired_locks); 
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

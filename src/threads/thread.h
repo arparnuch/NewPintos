@@ -100,6 +100,11 @@ struct thread
     int recent_cpu;
     int been_ignored;
 
+    /* Used for priority scheduling */
+    int init_priority;
+    struct lock *wait_on_lock;
+    struct list acquired_locks;
+
 /////////////////////////////////////////////////////////////////////////////
 
     #ifdef USERPROG
@@ -155,5 +160,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-
+//priority //
+bool priority_thread(const struct list_elem*, const struct list_elem*, void*);
+void refresh_ready_list(void);
 #endif /* threads/thread.h */
