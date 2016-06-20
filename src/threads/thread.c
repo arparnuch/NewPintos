@@ -246,6 +246,10 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  /////////////////////////////////////////////////
+  t->parent = thread_tid(); // add itself as parent 
+  /////////////////////////////////////////////////
+
   if (t->priority >= running_thread()){
     thread_yield ();
   }
